@@ -24,5 +24,6 @@
 	"associatedRiskScenarios": "سيناريوهات المخاطر المرتبطة",
 	"associatedRiskAcceptances": "قَبُول المخاطر المرتبطة",
 	"associatedComplianceAssessments": "المراجعات المرتبطة",
-	"type": "نوع"
+	"contentType": "نوع المحتوى",
+	"type": "النوع"
 }
