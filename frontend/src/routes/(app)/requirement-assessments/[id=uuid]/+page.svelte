@@ -11,6 +11,7 @@
 	import SuperForm from '$lib/components/Forms/Form.svelte';
 	import HiddenInput from '$lib/components/Forms/HiddenInput.svelte';
 	import Select from '$lib/components/Forms/Select.svelte';
+	import Score from '$lib/components/Forms/Score.svelte';
 	import TextArea from '$lib/components/Forms/TextArea.svelte';
 	import CreateModal from '$lib/components/Modals/CreateModal.svelte';
 	import ModelTable from '$lib/components/ModelTable/ModelTable.svelte';
@@ -26,13 +27,14 @@
 		type ToastStore,
 		TabGroup
 	} from '@skeletonlabs/skeleton';
-	import { superForm } from 'sveltekit-superforms/client';
+	import { superForm } from 'sveltekit-superforms';
 
 	import { localItems, capitalizeFirstLetter } from '$lib/utils/locales';
 	import { languageTag } from '$paraglide/runtime';
 	import * as m from '$paraglide/messages';
 
 	import { getRequirementTitle } from '$lib/utils/helpers';
+	import { zod } from 'sveltekit-superforms/adapters';
 
 	function cancel(): void {
 		var currentUrl = window.location.href;
@@ -41,9 +43,9 @@
 		if (nextValue) window.location.href = nextValue;
 	}
 
-	const title = getRequirementTitle(data.requirement.ref_id, data.requirement.name) ?
-		getRequirementTitle(data.requirement.ref_id, data.requirement.name) :
-		getRequirementTitle(data.parent.ref_id, data.parent.name);
+	const title = getRequirementTitle(data.requirement.ref_id, data.requirement.name)
+		? getRequirementTitle(data.requirement.ref_id, data.requirement.name)
+		: getRequirementTitle(data.parent.ref_id, data.parent.name);
 	breadcrumbObject.set({
 		id: data.requirementAssessment.id,
 		name: title ?? 'Requirement assessment',
@@ -149,7 +151,9 @@
 <div class="card space-y-2 p-4 bg-white shadow">
 	<code class="code">{data.requirement.urn}</code>
 	{#if data.requirement.description}
-		<p class="whitespace-pre-line">{data.requirement.description}</p>
+		<p class="whitespace-pre-line p-2 font-light text-lg">
+			👉 {data.requirement.description}
+		</p>
 	{/if}
 	{#if (threats && threats.length > 0) || (reference_controls && reference_controls.length > 0)}
 		<div class="card p-4 variant-glass-primary text-sm flex flex-row cursor-auto">
@@ -207,7 +211,7 @@
 			data={data.form}
 			dataType="json"
 			let:form
-			validators={schema}
+			validators={zod(schema)}
 			action="?/updateRequirementAssessment"
 			{...$$restProps}
 		>
@@ -264,17 +268,27 @@
 			<HiddenInput {form} field="folder" />
 			<HiddenInput {form} field="requirement" />
 			<HiddenInput {form} field="compliance_assessment" />
-			<div class="flex flex-col space-y-3 mt-3">
+			<div class="flex flex-col my-8 space-y-6">
 				<Select {form} options={data.model.selectOptions['status']} field="status" label="Status" />
-				<TextArea {form} field="observation" label="Observation" />
 
+				<Score
+					{form}
+					min_score={data.compliance_assessment_score.min_score}
+					max_score={data.compliance_assessment_score.max_score}
+					scores_definition={data.compliance_assessment_score.scores_definition}
+					field="score"
+					label="Score"
+				/>
+
+				<TextArea {form} field="observation" label="Observation" />
 				<div class="flex flex-row justify-between space-x-4">
 					<button
 						class="btn bg-gray-400 text-white font-semibold w-full"
 						type="button"
 						on:click={cancel}>{m.cancel()}</button
 					>
-					<button class="btn variant-filled-primary font-semibold w-full" type="submit">{m.save()}</button
+					<button class="btn variant-filled-primary font-semibold w-full" type="submit"
+						>{m.save()}</button
 					>
 				</div>
 			</div>

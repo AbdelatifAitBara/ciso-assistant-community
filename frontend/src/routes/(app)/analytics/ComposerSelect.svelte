@@ -7,8 +7,9 @@
 	import { onMount } from 'svelte';
 	import { getOptions } from '$lib/utils/crud';
 	import * as m from '$paraglide/messages';
+	import { zod } from 'sveltekit-superforms/adapters';
 
-	export let composerForm: SuperValidated<AnyZodObject>;
+	export let composerForm: SuperValidated<Record<string, any>>;
 
 	let options: { label: string; value: string }[];
 
@@ -22,7 +23,7 @@
 	dataType="json"
 	data={composerForm}
 	let:form
-	validators={composerSchema}
+	validators={zod(composerSchema)}
 	taintedMessage={null}
 	let:data
 >

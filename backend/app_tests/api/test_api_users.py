@@ -4,7 +4,7 @@ from rest_framework import status
 from rest_framework.test import APIClient
 from iam.models import User
 
-from test_vars import GROUPS_PERMISSIONS, USERS_ENDPOINT as API_ENDPOINT
+from test_vars import USERS_ENDPOINT as API_ENDPOINT
 from test_utils import EndpointTestsQueries
 
 # Generic user data for tests
@@ -86,7 +86,7 @@ class TestUsersAuthenticated:
             base_count=2,
             item_search_field="email",
             user_group=test.user_group,
-            scope="Global"
+            scope="Global",
         )
 
     def test_create_users(self, test):
@@ -100,7 +100,7 @@ class TestUsersAuthenticated:
             base_count=2,
             item_search_field="email",
             user_group=test.user_group,
-            scope="Global"
+            scope="Global",
         )
 
     def test_update_users(self, test):
@@ -117,7 +117,7 @@ class TestUsersAuthenticated:
                 "last_name": "new" + USER_NAME,
             },
             user_group=test.user_group,
-            scope="Global"
+            scope="Global",
         )
 
     def test_delete_users(self, test):
@@ -129,7 +129,7 @@ class TestUsersAuthenticated:
             User,
             {"email": USER_EMAIL, "first_name": USER_FIRSTNAME, "last_name": USER_NAME},
             user_group=test.user_group,
-            scope="Global"
+            scope="Global",
         )
 
     def test_uniqueness_emails(self, test):

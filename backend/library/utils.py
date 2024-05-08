@@ -54,7 +54,9 @@ def get_available_library_files():
             files.append(f)
     return files
 
+
 AVAILABLE_LIBRARIES = {}
+
 
 def get_available_libraries():
     """
@@ -69,12 +71,12 @@ def get_available_libraries():
     for f in files:
         fname = path / f
         modified_time = os.path.getmtime(fname)
-        libs = AVAILABLE_LIBRARIES.get((fname,modified_time))
-        if libs is None :
+        libs = AVAILABLE_LIBRARIES.get((fname, modified_time))
+        if libs is None:
             with open(fname, "r", encoding="utf-8") as file:
                 libs = list(yaml.safe_load_all(file))
-            AVAILABLE_LIBRARIES[(fname,os.path.getmtime(fname))] = libs
-        for _lib in libs :
+            AVAILABLE_LIBRARIES[(fname, os.path.getmtime(fname))] = libs
+        for _lib in libs:
             if (lib := Library.objects.filter(urn=_lib["urn"]).first()) is not None:
                 _lib["id"] = lib.id
                 _lib["reference_count"] = lib.reference_count
@@ -196,10 +198,9 @@ class RequirementNodeImporter:
             annotation=self.requirement_data.get("annotation"),
             provider=framework_object.provider,
             order_id=self.index,
-            level=self.requirement_data.get("level"),
             name=self.requirement_data.get("name"),
             description=self.requirement_data.get("description"),
-            maturity=self.requirement_data.get("maturity"),
+            implementation_groups=self.requirement_data.get("implementation_groups"),
             locale=framework_object.locale,
             default_locale=framework_object.default_locale,
             is_published=True,
@@ -213,14 +214,14 @@ class RequirementNodeImporter:
                 ReferenceControl.objects.get(urn=reference_control.lower())
             )
 
+
 # The couple (URN, locale) is unique. ===> Check it in the future
 class FrameworkImporter:
     REQUIRED_FIELDS = {"ref_id", "urn"}
-    OBJECT_FIELDS = {"requirement_nodes", "requirements"}  # "requirement_levels"
+    OBJECT_FIELDS = {"requirement_nodes", "requirements"}
 
     def __init__(self, framework_data: dict):
         self.framework_data = framework_data
-        # self._requirement_levels = []
         self._requirement_nodes = []
 
     def init_requirement_nodes(self, requirement_nodes: List[dict]) -> Union[str, None]:
@@ -283,6 +284,19 @@ class FrameworkImporter:
                 return requirement_node_import_error
 
     def import_framework(self, library_object: Library):
+        min_score = self.framework_data.get("min_score", 0)
+        max_score = self.framework_data.get("max_score", 100)
+
+        if (
+            min_score > max_score
+            or min_score < 0
+            or max_score < 0
+            or min_score == max_score
+        ):
+            raise ValueError(
+                "minimum score must be less than maximum score and equal or greater than 0."
+            )
+
         framework_object = Framework.objects.create(
             folder=Folder.get_root_folder(),
             library=library_object,
@@ -290,12 +304,17 @@ class FrameworkImporter:
             ref_id=self.framework_data["ref_id"],
             name=self.framework_data.get("name"),
             description=self.framework_data.get("description"),
+            min_score=min_score,
+            max_score=max_score,
+            scores_definition=self.framework_data.get("scores_definition"),
+            implementation_groups_definition=self.framework_data.get(
+                "implementation_groups_definition"
+            ),
             provider=library_object.provider,
             locale=library_object.locale,
             default_locale=library_object.default_locale,  # Change this in the future ?
             is_published=True,
         )
-
         for requirement_node in self._requirement_nodes:
             requirement_node.import_requirement_node(framework_object)
 
@@ -586,13 +605,11 @@ class LibraryImporter:
             risk_matrix.import_risk_matrix(library_object)
 
     @transaction.atomic
-    def _import_library(self) :
+    def _import_library(self):
         library_object = self.create_or_update_library()
         self.import_objects(library_object)
         library_object.dependencies.set(
-            Library.objects.filter(
-                urn__in=self._library_data.get("dependencies", [])
-            )
+            Library.objects.filter(urn__in=self._library_data.get("dependencies", []))
         )
 
     def import_library(self):
@@ -602,19 +619,20 @@ class LibraryImporter:
 
         self.check_and_import_dependencies()
 
-        for _ in range(10) :
+        for _ in range(10):
             try:
                 self._import_library()
                 break
-            except OperationalError as e :
-                if e.args and e.args[0] == 'database is locked' :
+            except OperationalError as e:
+                if e.args and e.args[0] == "database is locked":
                     time.sleep(1)
-                else :
+                else:
                     raise e
-            except Exception as e :
+            except Exception as e:
                 # TODO: Switch to proper logging
                 print(f"Library import exception: {e}")
                 raise e
+
 
 def import_library_view(library: dict) -> Union[str, None]:
     """

@@ -231,7 +231,6 @@ ADMINISTRATOR_PERMISSIONS_LIST = [
     "view_framework",
     "delete_framework",
     "view_requirementnode",
-    "view_requirementlevel",  # Permits to see the object on api by an admin
     "view_library",
     "add_library",
     "delete_library",
@@ -251,9 +250,7 @@ def startup(**kwargs):
 
     print("startup handler: initialize database")
 
-    reader_permissions = Permission.objects.filter(
-        codename__in=READER_PERMISSIONS_LIST
-    )
+    reader_permissions = Permission.objects.filter(codename__in=READER_PERMISSIONS_LIST)
 
     approver_permissions = Permission.objects.filter(
         codename__in=APPROVER_PERMISSIONS_LIST

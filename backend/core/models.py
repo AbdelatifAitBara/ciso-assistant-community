@@ -3,7 +3,6 @@ from django.forms.models import model_to_dict
 from django.contrib.auth import get_user_model
 from django.db import models
 from django.utils.translation import gettext_lazy as _
-from django.utils.html import mark_safe
 from django.db.models import Q
 
 from .base_models import *
@@ -328,6 +327,14 @@ class RiskMatrix(ReferentialObjectMixin):
 
 
 class Framework(ReferentialObjectMixin):
+    min_score = models.IntegerField(default=0, verbose_name=_("Minimum score"))
+    max_score = models.IntegerField(default=100, verbose_name=_("Maximum score"))
+    scores_definition = models.JSONField(
+        blank=True, null=True, verbose_name=_("Score definition")
+    )
+    implementation_groups_definition = models.JSONField(
+        blank=True, null=True, verbose_name=_("Implementation groups definition")
+    )
     library = models.ForeignKey(
         Library,
         on_delete=models.CASCADE,
@@ -355,10 +362,6 @@ class Framework(ReferentialObjectMixin):
         if requirement_nodes:
             res["requirement_nodes"] = requirement_nodes
 
-        requirement_levels = self.get_requirement_levels()
-        if requirement_levels:
-            res["requirement_levels"] = requirement_levels
-
         return res
 
     def get_requirement_nodes(self):
@@ -384,28 +387,6 @@ class Framework(ReferentialObjectMixin):
                 for reference_control in node.reference_controls.all()
             ]
         return node_dict
-
-    def get_requirement_levels(self):
-        levels_queryset = self.requirement_levels.all()
-        if levels_queryset.exists():
-            return [model_to_dict(level) for level in levels_queryset]
-        return []
-
-
-class RequirementLevel(ReferentialObjectMixin):
-    framework = models.ForeignKey(
-        Framework,
-        on_delete=models.CASCADE,
-        null=True,
-        blank=True,
-        verbose_name=_("Framework"),
-        related_name="requirement_levels",
-    )
-    level = models.IntegerField(null=False, blank=False, verbose_name=_("Level"))
-
-    class Meta:
-        verbose_name = _("Requirements level")
-        verbose_name_plural = _("Requirements levels")
 
 
 class RequirementNode(ReferentialObjectMixin):
@@ -433,8 +414,9 @@ class RequirementNode(ReferentialObjectMixin):
         max_length=100, null=True, blank=True, verbose_name=_("Parent URN")
     )
     order_id = models.IntegerField(null=True, verbose_name=_("Order ID"))
-    level = models.IntegerField(null=True, verbose_name=_("Level"))
-    maturity = models.IntegerField(null=True, verbose_name=_("Maturity"))
+    implementation_groups = models.JSONField(
+        null=True, verbose_name=_("Implementation groups")
+    )
     assessable = models.BooleanField(null=False, verbose_name=_("Assessable"))
 
     class Meta:
@@ -487,7 +469,7 @@ class Project(NameDescriptionMixin, FolderMixin):
         return round(count * 100 / total)
 
     def __str__(self):
-        return self.folder.name + '/' + self.name
+        return self.folder.name + "/" + self.name
 
 
 class Asset(NameDescriptionMixin, FolderMixin, PublishInRootFolderMixin):
@@ -1236,11 +1218,7 @@ class RiskScenario(NameDescriptionMixin):
         return self.DEFAULT_SOK_OPTIONS[self.strength_of_knowledge]
 
     def __str__(self):
-        return (
-            str(self.parent_project())
-            + _(": ")
-            + str(self.name)
-        )
+        return str(self.parent_project()) + _(": ") + str(self.name)
 
     @property
     def rid(self):
@@ -1284,10 +1262,38 @@ class ComplianceAssessment(Assessment):
         choices=Result.choices,
         verbose_name=_("Result"),
     )
+    selected_implementation_groups = models.JSONField(
+        blank=True, null=True, verbose_name=_("Selected implementation groups")
+    )
+    # score system is suggested by the framework, but can be changed at the start of the assessment
+    min_score = models.IntegerField(null=True, verbose_name=_("Minimum score"))
+    max_score = models.IntegerField(null=True, verbose_name=_("Maximum score"))
+    scores_definition = models.JSONField(
+        blank=True, null=True, verbose_name=_("Score definition")
+    )
 
     class Meta:
         verbose_name = _("Compliance assessment")
         verbose_name_plural = _("Compliance assessments")
+
+    def save(self, *args, **kwargs) -> None:
+        if self.min_score is None:
+            self.min_score = self.framework.min_score
+            self.max_score = self.framework.max_score
+            self.scores_definition = self.framework.scores_definition
+        super().save(*args, **kwargs)
+
+    def get_global_score(self):
+        requirement_assessments_scored = (
+            RequirementAssessment.objects.filter(compliance_assessment=self)
+            .exclude(score=None)
+            .exclude(status=RequirementAssessment.Status.NOT_APPLICABLE)
+            .exclude(is_scored=False)
+        )
+        score = requirement_assessments_scored.aggregate(models.Avg("score"))
+        if score["score__avg"] is not None:
+            return round(score["score__avg"], 1)
+        return -1
 
     def get_requirements_status_count(self):
         requirements_status_count = []
@@ -1346,7 +1352,7 @@ class ComplianceAssessment(Assessment):
                 compliance_assessment=self
             ).count()
             v = {
-                "name": st.label,
+                "name": st,
                 "localName": camel_case(st.value),
                 "value": count,
                 "itemStyle": {"color": color_map[st]},
@@ -1479,6 +1485,15 @@ class RequirementAssessment(AbstractBaseModel, FolderMixin):
         default=Status.TODO,
         verbose_name=_("Status"),
     )
+    score = models.IntegerField(
+        blank=True,
+        null=True,
+        verbose_name=_("Score"),
+    )
+    is_scored = models.BooleanField(
+        default=False,
+        verbose_name=_("Is scored"),
+    )
     evidences = models.ManyToManyField(
         Evidence,
         blank=True,
@@ -1500,6 +1515,10 @@ class RequirementAssessment(AbstractBaseModel, FolderMixin):
         blank=True,
         verbose_name=_("Applied controls"),
         related_name="requirement_assessments",
+    )
+    selected = models.BooleanField(
+        default=True,
+        verbose_name=_("Selected"),
     )
 
     def __str__(self) -> str:

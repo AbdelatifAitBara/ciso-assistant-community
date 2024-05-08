@@ -1,9 +1,8 @@
 import pytest
 from rest_framework.test import APIClient
 from core.models import Project, RiskAssessment, RiskMatrix
-from iam.models import Folder, User
+from iam.models import Folder
 
-from test_vars import GROUPS_PERMISSIONS
 from test_utils import EndpointTestsQueries
 
 # Generic project data for tests
@@ -121,7 +120,10 @@ class TestRiskAssessmentAuthenticated:
                 "risk_matrix": risk_matrix,
             },
             {
-                "project": {"id": str(project.id), "str": project.folder.name + "/" + project.name},
+                "project": {
+                    "id": str(project.id),
+                    "str": project.folder.name + "/" + project.name,
+                },
                 "risk_matrix": {"id": str(risk_matrix.id), "str": str(risk_matrix)},
             },
             user_group=test.user_group,
@@ -147,7 +149,10 @@ class TestRiskAssessmentAuthenticated:
                 "risk_matrix": str(risk_matrix.id),
             },
             {
-                "project": {"id": str(project.id), "str": project.folder.name + "/" + project.name},
+                "project": {
+                    "id": str(project.id),
+                    "str": project.folder.name + "/" + project.name,
+                },
                 "risk_matrix": {"id": str(risk_matrix.id), "str": str(risk_matrix)},
             },
             user_group=test.user_group,
@@ -185,7 +190,10 @@ class TestRiskAssessmentAuthenticated:
                 "risk_matrix": str(risk_matrix2.id),
             },
             {
-                "project": {"id": str(project.id), "str": project.folder.name + "/" + project.name},
+                "project": {
+                    "id": str(project.id),
+                    "str": project.folder.name + "/" + project.name,
+                },
                 "risk_matrix": {"id": str(risk_matrix.id), "str": str(risk_matrix)},
             },
             user_group=test.user_group,

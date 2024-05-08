@@ -71,7 +71,7 @@ export const RiskMatrixSchema = baseNamedObject({
 });
 
 export const LibraryUploadSchema = z.object({
-	file: z.string().optional()
+	file: z.instanceof(File).optional()
 });
 
 export const RiskAssessmentSchema = baseNamedObject({
@@ -81,8 +81,8 @@ export const RiskAssessmentSchema = baseNamedObject({
 	risk_matrix: z.string(),
 	eta: z.string().optional().nullable(),
 	due_date: z.string().optional().nullable(),
-	authors: z.array(z.string().optional()),
-	reviewers: z.array(z.string().optional())
+	authors: z.array(z.string().optional()).optional(),
+	reviewers: z.array(z.string().optional()).optional()
 });
 
 export const ThreatSchema = baseNamedObject({
@@ -93,7 +93,7 @@ export const ThreatSchema = baseNamedObject({
 
 export const RiskScenarioSchema = baseNamedObject({
 	existing_controls: z.string().optional(),
-	applied_controls: z.string().uuid().optional().array(),
+	applied_controls: z.string().uuid().optional().array().optional(),
 	current_proba: z.number().optional(),
 	current_impact: z.number().optional(),
 	residual_proba: z.number().optional(),
@@ -102,8 +102,8 @@ export const RiskScenarioSchema = baseNamedObject({
 	strength_of_knowledge: z.number().default(-1).optional(),
 	justification: z.string().optional().nullable(),
 	risk_assessment: z.string(),
-	threats: z.string().uuid().optional().array(),
-	assets: z.string().uuid().optional().array()
+	threats: z.string().uuid().optional().array().optional(),
+	assets: z.string().uuid().optional().array().optional()
 });
 
 export const AppliedControlSchema = baseNamedObject({
@@ -142,7 +142,7 @@ export const ReferenceControlSchema = baseNamedObject({
 	category: z.string().optional().nullable(),
 	folder: z.string(),
 	ref_id: z.string().optional().nullable(),
-	annotation: z.string().optional().nullable(),
+	annotation: z.string().optional().nullable()
 });
 
 export const AssetSchema = baseNamedObject({
@@ -154,6 +154,8 @@ export const AssetSchema = baseNamedObject({
 
 export const RequirementAssessmentSchema = z.object({
 	status: z.string(),
+	score: z.number().optional().nullable(),
+	is_scored: z.boolean().optional(),
 	comment: z.string().optional().nullable(),
 	folder: z.string(),
 	requirement: z.string(),
@@ -196,12 +198,12 @@ export const ComplianceAssessmentSchema = baseNamedObject({
 	framework: z.string(),
 	eta: z.string().optional().nullable(),
 	due_date: z.string().optional().nullable(),
-	authors: z.array(z.string().optional()),
-	reviewers: z.array(z.string().optional())
+	authors: z.array(z.string().optional()).optional(),
+	reviewers: z.array(z.string().optional()).optional()
 });
 
 export const EvidenceSchema = baseNamedObject({
-	attachment: z.string().optional().nullable(),
+	attachment: z.instanceof(File).optional().nullable(),
 	folder: z.string(),
 	applied_controls: z.preprocess(toArrayPreprocessor, z.array(z.string().optional())).optional(),
 	requirement_assessments: z.string().optional().array().optional(),

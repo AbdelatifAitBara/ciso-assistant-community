@@ -1,13 +1,14 @@
-import { BASE_API_URL, ISO_8601_REGEX } from '$lib/utils/constants';
-import { getModelInfo, processObject } from '$lib/utils/crud';
+import { BASE_API_URL } from '$lib/utils/constants';
+import { getModelInfo } from '$lib/utils/crud';
 import { tableSourceMapper, type TableSource } from '@skeletonlabs/skeleton';
 
 import { modelSchema } from '$lib/utils/schemas';
 import { listViewFields } from '$lib/utils/table';
 import type { urlModel } from '$lib/utils/types';
-import { superValidate } from 'sveltekit-superforms/server';
+import { superValidate } from 'sveltekit-superforms';
 import { z } from 'zod';
 import type { LayoutServerLoad } from './$types';
+import { zod } from 'sveltekit-superforms/adapters';
 
 export const load: LayoutServerLoad = async ({ fetch, params }) => {
 	const URLModel: urlModel = 'risk-matrices';
@@ -39,9 +40,9 @@ export const load: LayoutServerLoad = async ({ fetch, params }) => {
 				const info = getModelInfo(e.urlModel);
 				const urlModel = e.urlModel;
 
-				const deleteForm = await superValidate(z.object({ id: z.string().uuid() }));
+				const deleteForm = await superValidate(zod(z.object({ id: z.string().uuid() })));
 				const createSchema = modelSchema(e.urlModel);
-				const createForm = await superValidate(createSchema);
+				const createForm = await superValidate(zod(createSchema));
 
 				const foreignKeys: Record<string, any> = {};
 

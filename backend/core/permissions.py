@@ -9,7 +9,8 @@ User = get_user_model()
 
 
 class RBACPermissions(permissions.DjangoObjectPermissions):
-    """ this is the DRF custom permission model enforcing our RBAC logic """
+    """this is the DRF custom permission model enforcing our RBAC logic"""
+
     perms_map = {
         "GET": ["%(app_label)s.view_%(model_name)s"],
         "OPTIONS": [],
@@ -28,16 +29,22 @@ class RBACPermissions(permissions.DjangoObjectPermissions):
     def has_object_permission(self, request: Request, view, obj):
         if not request.method:
             return False
-        queryset = self._queryset(view)
-        perms = self.get_required_permissions(request.method, queryset.model)
+        perms = self.get_required_permissions(request.method, type(obj))
         if not perms:
             return False
         _codename = perms[0].split(".")[1]
         if request.method in ["GET", "OPTIONS", "HEAD"] and obj.is_published:
             return True
+        perm = Permission.objects.get(codename=_codename)
+        # special case of risk acceptance approval
+        if (
+            request.parser_context["request"]._request.resolver_match.url_name
+            == "risk-acceptances-accept"
+        ):
+            perm = Permission.objects.get(codename="approve_riskacceptance")
         return RoleAssignment.is_access_allowed(
             user=request.user,
-            perm=Permission.objects.get(codename=_codename),
+            perm=perm,
             folder=Folder.get_folder(obj),
         )
 

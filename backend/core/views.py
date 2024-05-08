@@ -1,63 +1,50 @@
 import csv
-from datetime import datetime
-import mimetypes
-import tempfile
-from uuid import UUID
-import zipfile
-from django.core.files.storage import default_storage
-
-from django.http import FileResponse, HttpResponse
-from rest_framework.parsers import FileUploadParser
-from rest_framework.request import Request
-from rest_framework.views import APIView
-from core.forms import FirstConnexionConfirmForm, ResetConfirmForm
-from core.models import AppliedControl
-
-from core.helpers import *
-from rest_framework.response import Response
-
-from .models import *
-from .serializers import *
-from .permissions import IsAdministrator
-
-from ciso_assistant.settings import (
-    BUILD,
-    VERSION,
-)
-
-from django.middleware import csrf
-from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import permissions, status, viewsets, filters
-from rest_framework.decorators import (
-    api_view,
-    permission_classes,
-    action,
-)
-
-import csv
 import importlib
+import mimetypes
 import re
+import tempfile
 import uuid
+import zipfile
+from datetime import datetime
 from typing import Any
 from uuid import UUID
 
 import django_filters as df
-from core.models import ComplianceAssessment
-from core.serializers import ComplianceAssessmentReadSerializer
+from ciso_assistant.settings import (
+    BUILD,
+    VERSION,
+)
 from django.contrib.auth.models import Permission
-from django.contrib.auth.views import PasswordResetConfirmView
+from django.core.files.storage import default_storage
+from django.db import models
 from django.forms import ValidationError
+from django.http import FileResponse, HttpResponse
+from django.middleware import csrf
 from django.template.loader import render_to_string
 from django.utils.functional import Promise
+from django_filters.rest_framework import DjangoFilterBackend
+from iam.models import Folder, RoleAssignment, User, UserGroup
+from rest_framework import filters, permissions, status, viewsets
+from rest_framework.decorators import (
+    action,
+    api_view,
+    permission_classes,
+)
+from rest_framework.parsers import FileUploadParser
+from rest_framework.request import Request
+from rest_framework.response import Response
 from rest_framework.status import HTTP_400_BAD_REQUEST, HTTP_403_FORBIDDEN
 from rest_framework.utils.serializer_helpers import ReturnDict
+from rest_framework.views import APIView
 from weasyprint import HTML
 
+from core.helpers import *
+from core.models import AppliedControl, ComplianceAssessment
+from core.serializers import ComplianceAssessmentReadSerializer
 from core.utils import RoleCodename, UserGroupCodename
 
-from django.db import models
-
-from iam.models import User, UserGroup, RoleAssignment, Folder
+from .models import *
+from .serializers import *
 
 User = get_user_model()
 
@@ -837,24 +824,31 @@ class UserViewSet(BaseModelViewSet):
 
     def update(self, request: Request, *args, **kwargs) -> Response:
         user = self.get_object()
-        if user.is_admin() :
+        if user.is_admin():
             number_of_admin_users = User.get_admin_users().count()
             admin_group = UserGroup.objects.get(name="BI-UG-ADM")
-            if number_of_admin_users == 1 :
+            if number_of_admin_users == 1:
                 new_user_groups = set(request.data["user_groups"])
-                if str(admin_group.pk) not in new_user_groups :
-                    return Response({"error":"attemptToRemoveOnlyAdminUserGroup"},status=HTTP_403_FORBIDDEN)
+                if str(admin_group.pk) not in new_user_groups:
+                    return Response(
+                        {"error": "attemptToRemoveOnlyAdminUserGroup"},
+                        status=HTTP_403_FORBIDDEN,
+                    )
 
         return super().update(request, *args, **kwargs)
 
     def destroy(self, request, *args, **kwargs):
         user = self.get_object()
-        if user.is_admin() :
+        if user.is_admin():
             number_of_admin_users = User.get_admin_users().count()
-            if number_of_admin_users == 1 :
-                return Response({"error":"attemptToDeleteOnlyAdminAccountError"},status=HTTP_403_FORBIDDEN)
+            if number_of_admin_users == 1:
+                return Response(
+                    {"error": "attemptToDeleteOnlyAdminAccountError"},
+                    status=HTTP_403_FORBIDDEN,
+                )
 
-        return super().destroy(request,*args,**kwargs)
+        return super().destroy(request, *args, **kwargs)
+
 
 class UserGroupViewSet(BaseModelViewSet):
     """
@@ -1083,16 +1077,6 @@ class RequirementNodeViewSet(BaseModelViewSet):
     search_fields = ["name", "description"]
 
 
-class RequirementLevelViewSet(BaseModelViewSet):
-    """
-    API endpoint that allows requirement levels to be viewed or edited.
-    """
-
-    model = RequirementLevel
-    filterset_fields = ["framework"]
-    search_fields = ["name"]
-
-
 class RequirementViewSet(BaseModelViewSet):
     """
     API endpoint that allows requirements to be viewed or edited.
@@ -1132,6 +1116,9 @@ class EvidenceViewSet(BaseModelViewSet):
                 response = HttpResponse(
                     evidence.attachment,
                     content_type=content_type,
+                    headers={
+                        "Content-Disposition": f"attachment; filename={evidence.filename()}"
+                    },
                     status=status.HTTP_200_OK,
                 )
         return response
@@ -1167,7 +1154,7 @@ class UploadAttachmentView(APIView):
                 evidence.attachment = attachment
                 evidence.save()
                 return Response(status=status.HTTP_200_OK)
-            except Exception as e:
+            except Exception:
                 return Response(status=status.HTTP_400_BAD_REQUEST)
         return Response(status=status.HTTP_400_BAD_REQUEST)
 
@@ -1223,6 +1210,18 @@ class ComplianceAssessmentViewSet(BaseModelViewSet):
             for a in compliance_assessments
         ]
         return Response({"results": res})
+
+    @action(detail=True, methods=["get"])
+    def global_score(self, request, pk):
+        """Returns the global score of the compliance assessment"""
+        return Response(
+            {
+                "score": self.get_object().get_global_score(),
+                "max_score": self.get_object().max_score,
+                "min_score": self.get_object().min_score,
+                "scores_definition": self.get_object().scores_definition,
+            }
+        )
 
     @action(detail=True, methods=["get"], url_path="quality_check")
     def quality_check_detail(self, request, pk):
@@ -1393,11 +1392,6 @@ def get_build(request):
 
 
 # NOTE: Important functions/classes from old views.py, to be reviewed
-
-
-class FirstConnexionPasswordConfirmView(PasswordResetConfirmView):
-    template_name = "registration/first_connexion_confirm.html"
-    form_class = FirstConnexionConfirmForm
 
 
 def generate_html(

@@ -3,7 +3,6 @@ from rest_framework.test import APIClient
 from core.models import Project
 from iam.models import Folder
 
-from test_vars import GROUPS_PERMISSIONS
 from test_utils import EndpointTestsQueries
 
 # Generic project data for tests
@@ -99,7 +98,7 @@ class TestProjectsAuthenticated:
                 "lc_status": PROJECT_STATUS[1],
             },
             user_group=test.user_group,
-            scope=str(test.folder)
+            scope=str(test.folder),
         )
 
     def test_create_projects(self, test):
@@ -121,7 +120,7 @@ class TestProjectsAuthenticated:
                 "lc_status": PROJECT_STATUS[1],
             },
             user_group=test.user_group,
-            scope=str(test.folder)
+            scope=str(test.folder),
         )
 
     def test_update_projects(self, test):

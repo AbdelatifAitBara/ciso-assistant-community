@@ -11,7 +11,7 @@
 	} from '@skeletonlabs/skeleton';
 	import { TabGroup, Tab, getModalStore, getToastStore } from '@skeletonlabs/skeleton';
 	import { breadcrumbObject } from '$lib/utils/stores';
-	import { superForm } from 'sveltekit-superforms/client';
+	import { superForm } from 'sveltekit-superforms';
 	import { getModelInfo } from '$lib/utils/crud.js';
 	import { URL_MODEL_MAP } from '$lib/utils/crud';
 	import { isURL } from '$lib/utils/helpers';
@@ -81,7 +81,7 @@
 		const modalComponent: ModalComponent = {
 			ref: ConfirmModal,
 			props: {
-				_form: data.data.form,
+				_form: data.form,
 				id: id,
 				debug: false,
 				URLModel: getModelInfo('risk-acceptances').urlModel,
@@ -197,7 +197,7 @@
 								: null}
 						>
 							{#if value}
-								{#if key === "library"}
+								{#if key === 'library'}
 									{@const itemHref = `/libraries/${value.urn}`}
 									<a href={itemHref} class="anchor">{value.name}</a>
 								{:else if Array.isArray(value)}

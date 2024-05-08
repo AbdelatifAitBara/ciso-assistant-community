@@ -4,7 +4,6 @@ from core.models import ComplianceAssessment, Framework
 from core.models import Project
 from iam.models import Folder
 
-from test_vars import GROUPS_PERMISSIONS
 from test_utils import EndpointTestsQueries
 
 # Generic compliance assessment data for tests
@@ -118,10 +117,15 @@ class TestComplianceAssessmentsAuthenticated:
                 "framework": Framework.objects.all()[0],
             },
             {
-                "project": {"id": str(project.id), "str": project.folder.name + "/" + project.name},
+                "project": {
+                    "id": str(project.id),
+                    "str": project.folder.name + "/" + project.name,
+                },
                 "framework": {
                     "id": str(Framework.objects.all()[0].id),
                     "str": str(Framework.objects.all()[0]),
+                    "min_score": 1,
+                    "max_score": 4,
                 },
             },
             user_group=test.user_group,
@@ -146,10 +150,15 @@ class TestComplianceAssessmentsAuthenticated:
                 "framework": str(Framework.objects.all()[0].id),
             },
             {
-                "project": {"id": str(project.id), "str": project.folder.name + "/" + project.name},
+                "project": {
+                    "id": str(project.id),
+                    "str": project.folder.name + "/" + project.name,
+                },
                 "framework": {
                     "id": str(Framework.objects.all()[0].id),
                     "str": str(Framework.objects.all()[0]),
+                    "min_score": Framework.objects.all()[0].min_score,
+                    "max_score": Framework.objects.all()[0].max_score,
                 },
             },
             user_group=test.user_group,
@@ -186,10 +195,15 @@ class TestComplianceAssessmentsAuthenticated:
                 "framework": str(Framework.objects.all()[1].id),
             },
             {
-                "project": {"id": str(project.id), "str": project.folder.name + "/" + project.name},
+                "project": {
+                    "id": str(project.id),
+                    "str": project.folder.name + "/" + project.name,
+                },
                 "framework": {
                     "id": str(Framework.objects.all()[0].id),
                     "str": str(Framework.objects.all()[0]),
+                    "min_score": Framework.objects.all()[0].min_score,
+                    "max_score": Framework.objects.all()[0].max_score,
                 },
             },
             user_group=test.user_group,

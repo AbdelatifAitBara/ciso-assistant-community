@@ -1,20 +1,14 @@
 import json
-from django.core.exceptions import ValidationError
 from django.db import IntegrityError
-from django.db.models import QuerySet
-from rest_framework import permissions, status
-from rest_framework.generics import get_object_or_404
+from rest_framework import status
 from rest_framework.status import (
     HTTP_200_OK,
     HTTP_400_BAD_REQUEST,
     HTTP_422_UNPROCESSABLE_ENTITY,
 )
 from rest_framework.parsers import FileUploadParser
-from rest_framework.views import APIView
 
 
-from django.contrib import messages
-from django.utils.translation import gettext_lazy as _
 from django.http import HttpResponse
 import yaml
 
@@ -28,8 +22,9 @@ from .helpers import preview_library
 
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from .serializers import LibrarySerializer, LibraryUploadSerializer
+from .serializers import LibrarySerializer
 from .utils import get_available_libraries, get_library, import_library_view
+
 
 class LibraryViewSet(BaseModelViewSet):
     serializer_class = LibrarySerializer
@@ -40,12 +35,12 @@ class LibraryViewSet(BaseModelViewSet):
     model = Library
 
     def list(self, request, *args, **kwargs):
-        if not "view_library" in request.user.permissions:
+        if "view_library" not in request.user.permissions:
             return Response(status=status.HTTP_403_FORBIDDEN)
         return Response({"results": get_available_libraries()})
 
     def retrieve(self, request, *args, pk, **kwargs):
-        if not "view_library" in request.user.permissions:
+        if "view_library" not in request.user.permissions:
             return Response(status=status.HTTP_403_FORBIDDEN)
             return Response(
                 status=status.HTTP_403_FORBIDDEN,
@@ -67,7 +62,7 @@ class LibraryViewSet(BaseModelViewSet):
             return Response(data="Library not found.", status=status.HTTP_404_NOT_FOUND)
 
         # "reference_count" is not always defined (is this normal ?)
-        if library.get("reference_count",0) != 0 :
+        if library.get("reference_count", 0) != 0:
             return Response(
                 data="Library cannot be deleted because it has references.",
                 status=status.HTTP_400_BAD_REQUEST,
@@ -122,7 +117,7 @@ class LibraryViewSet(BaseModelViewSet):
         except Exception as e:
             return Response(
                 {
-                    "error": "Failed to load library, please check if it has dependencies"
+                    "error": f"Failed to load library, please check if it has dependencies: {e}"
                 },
                 status=HTTP_422_UNPROCESSABLE_ENTITY,
             )
@@ -153,9 +148,11 @@ class LibraryViewSet(BaseModelViewSet):
             return HttpResponse(json.dumps({}), status=HTTP_200_OK)
         except IntegrityError:
             return HttpResponse(
-                json.dumps({"error" : "libraryAlreadyImportedError"}), status=HTTP_400_BAD_REQUEST
+                json.dumps({"error": "libraryAlreadyImportedError"}),
+                status=HTTP_400_BAD_REQUEST,
             )
-        except :
+        except:
             return HttpResponse(
-                json.dumps({"error": "invalidLibraryFileError"}), status=HTTP_400_BAD_REQUEST
+                json.dumps({"error": "invalidLibraryFileError"}),
+                status=HTTP_400_BAD_REQUEST,
             )

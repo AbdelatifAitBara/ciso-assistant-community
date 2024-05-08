@@ -1,4 +1,4 @@
-import { BASE_API_URL } from '$lib/utils/constants';
+import { BASE_API_URL, UUID_REGEX } from '$lib/utils/constants';
 import { URL_MODEL_MAP, getModelInfo, type ModelMapEntry } from '$lib/utils/crud';
 import { tableSourceMapper, type TableSource } from '@skeletonlabs/skeleton';
 
@@ -6,9 +6,10 @@ import { modelSchema } from '$lib/utils/schemas';
 import { listViewFields } from '$lib/utils/table';
 import type { urlModel } from '$lib/utils/types';
 import type { SuperValidated } from 'sveltekit-superforms';
-import { superValidate } from 'sveltekit-superforms/server';
+import { superValidate } from 'sveltekit-superforms';
 import { z, type AnyZodObject } from 'zod';
 import type { LayoutServerLoad } from './$types';
+import { zod } from 'sveltekit-superforms/adapters';
 
 export const load: LayoutServerLoad = async ({ fetch, params }) => {
 	const endpoint = `${BASE_API_URL}/${params.model}/${params.id}/`;
@@ -29,6 +30,8 @@ export const load: LayoutServerLoad = async ({ fetch, params }) => {
 	type RelatedModels = {
 		[K in urlModel]: RelatedModel;
 	};
+
+	const form = await superValidate(zod(z.object({ id: z.string().uuid() })));
 
 	const model = getModelInfo(params.model);
 	const relatedModels = {} as RelatedModels;
@@ -61,11 +64,20 @@ export const load: LayoutServerLoad = async ({ fetch, params }) => {
 				const info = getModelInfo(e.urlModel);
 				const urlModel = e.urlModel;
 
-				const deleteForm = await superValidate(z.object({ id: z.string().uuid() }));
+				const deleteForm = await superValidate(zod(z.object({ id: z.string().uuid() })));
 				const createSchema = modelSchema(e.urlModel);
 				initialData[e.field] = data.id;
-				if (data.folder) initialData['folder'] = data.folder.id ?? data.folder;
-				const createForm = await superValidate(initialData, createSchema, { errors: false });
+				if (data.folder) {
+					if (!new RegExp(UUID_REGEX).test(data.folder)) {
+						const objectEndpoint = `${endpoint}object/`;
+						const objectResponse = await fetch(objectEndpoint);
+						const objectData = await objectResponse.json();
+						initialData['folder'] = objectData.folder;
+					} else {
+						initialData['folder'] = data.folder.id ?? data.folder;
+					}
+				}
+				const createForm = await superValidate(initialData, zod(createSchema), { errors: false });
 
 				const foreignKeys: Record<string, any> = {};
 
@@ -114,5 +126,5 @@ export const load: LayoutServerLoad = async ({ fetch, params }) => {
 			})
 		);
 	}
-	return { data, relatedModels, urlModel: params.model, model: URL_MODEL_MAP[params.model] };
+	return { data, form, relatedModels, urlModel: params.model, model: URL_MODEL_MAP[params.model] };
 };
